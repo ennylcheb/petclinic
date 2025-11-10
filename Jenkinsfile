@@ -128,7 +128,9 @@ spec:
     post {
         always {
             echo '🧹 Cleaning up Docker credentials...'
-            sh 'docker logout || true'
+            container('docker') {
+                sh 'docker logout || true'
+            }
         }
         success {
             echo '✅ Pipeline completed successfully!'
@@ -136,7 +138,13 @@ spec:
             echo "App URL: http://<NODE_IP>:30080"
         }
         failure {
-            echo '❌ Pipeline failed. Check logs above.'
+            echo '❌ Pipeline failed. Attempting rollback...'
+            container('jenkins') {
+                sh '''
+                    echo "🔁 Rolling back last deployment..."
+                    kubectl rollout undo deployment/petclinic || echo "No previous deployment found."
+                '''
+            }
         }
     }
 }
