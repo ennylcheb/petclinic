@@ -1,28 +1,69 @@
 pipeline {
-    agent any
-    
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: jenkins-dind
+spec:
+  containers:
+  - name: jenkins
+    image: jenkins/jenkins:lts-jdk21
+    imagePullPolicy: IfNotPresent
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+    - name: docker-certs
+      mountPath: /certs/client
+  - name: docker
+    image: docker:25-dind
+    securityContext:
+      privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: /certs
+    volumeMounts:
+    - name: docker-certs
+      mountPath: /certs/client
+    - name: docker-storage
+      mountPath: /var/lib/docker
+  volumes:
+  - name: docker-certs
+    emptyDir: {}
+  - name: docker-storage
+    emptyDir: {}
+"""
+        }
+    }
+
     environment {
+        DOCKER_HOST = "tcp://localhost:2375"
+        DOCKER_TLS_CERTDIR = ""
         DOCKER_HUB_CREDENTIALS = credentials('dockerhub-credentials')
         DOCKER_IMAGE = 'ennyl/petclinic'
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out code from GitHub...'
+                echo '📦 Checking out code from GitHub...'
                 checkout scm
             }
         }
-        
+
         stage('Build and Test') {
             steps {
-                echo 'Building application with Maven (inside Docker)...'
-                echo 'Running tests...'
-                sh '''
-                    chmod +x mvnw
-                    ./mvnw clean test
-                '''
+                container('jenkins') {
+                    echo '🧪 Building application with Maven (inside Jenkins container)...'
+                    sh '''
+                        chmod +x mvnw
+                        ./mvnw clean test
+                    '''
+                }
             }
             post {
                 always {
@@ -30,88 +71,73 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image: ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-                echo "This will compile the application inside Docker..."
-                sh '''
-                    docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
-                    docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest
-                '''
+                container('docker') {
+                    echo "🐳 Building Docker image: ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                    sh '''
+                        docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+                        docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest
+                    '''
+                }
             }
         }
-        
+
         stage('Push to Docker Hub') {
             steps {
-                echo 'Pushing image to Docker Hub...'
-                sh '''
-                    echo $DOCKER_HUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_CREDENTIALS_USR --password-stdin
-                    docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
-                    docker push ${DOCKER_IMAGE}:latest
-                '''
+                container('docker') {
+                    echo '🚀 Pushing image to Docker Hub...'
+                    sh '''
+                        echo $DOCKER_HUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_CREDENTIALS_USR --password-stdin
+                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
+                    '''
+                }
             }
         }
-        
-        stage('Update Kubernetes Manifest') {
-            steps {
-                echo "Updating deployment manifest with build number: ${BUILD_NUMBER}"
-                sh '''
-                    sed -i "s|BUILD_NUMBER|${BUILD_NUMBER}|g" k8s/07-petclinic-deployment.yaml
-                    echo "Updated image tag:"
-                    cat k8s/07-petclinic-deployment.yaml | grep "image:"
-                '''
-            }
-        }
-        
+
         stage('Deploy to Kubernetes') {
             steps {
-                echo 'Deploying to Kubernetes...'
-                sh '''
-                    kubectl apply -f k8s/07-petclinic-deployment.yaml
-                    kubectl apply -f k8s/08-petclinic-service.yaml
-                    echo "Waiting for deployment rollout..."
-                    kubectl rollout status deployment/petclinic --timeout=5m
-                '''
+                container('jenkins') {
+                    echo '📦 Deploying to Kubernetes...'
+                    sh '''
+                        sed -i "s|BUILD_NUMBER|${BUILD_NUMBER}|g" k8s/07-petclinic-deployment.yaml
+                        kubectl apply -f k8s/07-petclinic-deployment.yaml
+                        kubectl apply -f k8s/08-petclinic-service.yaml
+                        kubectl rollout status deployment/petclinic --timeout=5m
+                    '''
+                }
             }
         }
-        
+
         stage('Verify Deployment') {
             steps {
-                echo 'Verifying deployment...'
-                sh '''
-                    echo "=== Pods Status ==="
-                    kubectl get pods -l app=petclinic
-                    echo ""
-                    echo "=== Service Details ==="
-                    kubectl get svc petclinic
-                    echo ""
-                    echo "=== Deployment Info ==="
-                    kubectl describe deployment petclinic | grep Image:
-                '''
+                container('jenkins') {
+                    echo '🔍 Verifying deployment...'
+                    sh '''
+                        kubectl get pods -l app=petclinic
+                        kubectl get svc petclinic
+                        kubectl describe deployment petclinic | grep Image:
+                    '''
+                }
             }
         }
     }
-    
+
     post {
         always {
-            echo 'Cleaning up Docker credentials...'
+            echo '🧹 Cleaning up Docker credentials...'
             sh 'docker logout || true'
         }
         success {
-            echo '=========================================='
             echo '✅ Pipeline completed successfully!'
-            echo '=========================================='
-            echo "Build Number: ${BUILD_NUMBER}"
             echo "Image: ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-            echo "Application URL: http://<NODE_IP>:30080"
-            echo '=========================================='
+            echo "App URL: http://<NODE_IP>:30080"
         }
         failure {
-            echo '=========================================='
-            echo '❌ Pipeline failed!'
-            echo '=========================================='
-            echo 'Check the console output above for errors'
+            echo '❌ Pipeline failed. Check logs above.'
         }
     }
 }
+
