@@ -126,26 +126,39 @@ spec:
     }
 
     post {
-        always {
+    always {
+        script {
             echo '🧹 Cleaning up Docker credentials...'
-            container('docker') {
-                sh 'docker logout || true'
-            }
-        }
-        success {
-            echo '✅ Pipeline completed successfully!'
-            echo "Image: ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-            echo "App URL: http://<NODE_IP>:30080"
-        }
-        failure {
-            echo '❌ Pipeline failed. Attempting rollback...'
-            container('jenkins') {
-                sh '''
-                    echo "🔁 Rolling back last deployment..."
-                    kubectl rollout undo deployment/petclinic || echo "No previous deployment found."
-                '''
+            try {
+                container('docker') {
+                    sh 'docker logout || true'
+                }
+            } catch (err) {
+                echo "⚠️ Cleanup skipped (no Docker context): ${err.message}"
             }
         }
     }
+    success {
+        echo '✅ Pipeline completed successfully!'
+        echo "Image: ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+        echo "App URL: http://<NODE_IP>:30080"
+    }
+    failure {
+        script {
+            echo '❌ Pipeline failed. Attempting rollback...'
+            try {
+                container('jenkins') {
+                    sh '''
+                        echo "🔁 Rolling back last deployment..."
+                        kubectl rollout undo deployment/petclinic || echo "No previous deployment found."
+                    '''
+                }
+            } catch (err) {
+                echo "⚠️ Rollback skipped (no Kubernetes context): ${err.message}"
+            }
+        }
+    }
+  }
+
 }
 
