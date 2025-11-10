@@ -37,10 +37,7 @@ spec:
                   name: postgres-secret
                   key: password
             - name: SPRING_PROFILES_ACTIVE
-              valueFrom:
-                configMapKeyRef:
-                  name: petclinic-config
-                  key: SPRING_PROFILES_ACTIVE
+              value: postgres
           resources:
             requests:
               memory: "512Mi"
