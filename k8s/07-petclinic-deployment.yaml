@@ -24,20 +24,21 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: SPRING_DATASOURCE_URL
-              value: jdbc:postgresql://postgres:5432/petclinic
-            - name: SPRING_DATASOURCE_USERNAME
+            # CRITICAL: Use correct variable names for postgres profile
+            - name: SPRING_PROFILES_ACTIVE
+              value: "postgres"
+            - name: POSTGRES_URL
+              value: "jdbc:postgresql://postgres:5432/petclinic"
+            - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: username
-            - name: SPRING_DATASOURCE_PASSWORD
+            - name: POSTGRES_PASS
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
-            - name: SPRING_PROFILES_ACTIVE
-              value: postgres
           resources:
             requests:
               memory: "512Mi"
@@ -45,3 +46,20 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
+          # Add health probes to help rollout
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
