@@ -57,9 +57,17 @@ pipeline {
             steps {
                 echo "Updating deployment manifest with build number: ${BUILD_NUMBER}"
                 sh '''
-                    sed -i "s|BUILD_NUMBER|${BUILD_NUMBER}|g" k8s/07-petclinic-deployment.yaml
-                    echo "Updated image tag:"
-                    cat k8s/07-petclinic-deployment.yaml | grep "image:"
+                    # Install kubectl if not present
+                    if ! command -v kubectl &> /dev/null; then
+                        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                        sudo mv kubectl /usr/local/bin/
+                    fi
+                    
+                    kubectl apply -f k8s/07-petclinic-deployment.yaml
+                    kubectl apply -f k8s/08-petclinic-service.yaml
+                    echo "Waiting for deployment rollout..."
+                    kubectl rollout status deployment/petclinic --timeout=5m
                 '''
             }
         }
