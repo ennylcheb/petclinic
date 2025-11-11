@@ -61,7 +61,7 @@ pipeline {
                     if ! command -v kubectl &> /dev/null; then
                         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                         chmod +x kubectl
-                        sudo mv kubectl /usr/local/bin/
+                        mv kubectl /usr/local/bin/
                     fi
                     
                     kubectl apply -f k8s/07-petclinic-deployment.yaml
@@ -71,7 +71,7 @@ pipeline {
                 '''
             }
         }
-        
+           
         stage('Deploy to Kubernetes') {
             steps {
                 echo 'Deploying to Kubernetes...'
