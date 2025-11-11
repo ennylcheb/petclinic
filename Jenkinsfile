@@ -64,6 +64,7 @@ pipeline {
                         mv kubectl /usr/local/bin/
                     fi
                     
+                    sed -i 's/BUILD_NUMBER/${BUILD_NUMBER}/g' k8s/07-petclinic-deployment.yaml
                     kubectl apply -f k8s/07-petclinic-deployment.yaml
                     kubectl apply -f k8s/08-petclinic-service.yaml
                     echo "Waiting for deployment rollout..."
