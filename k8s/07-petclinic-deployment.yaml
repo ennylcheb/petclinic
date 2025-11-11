@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: petclinic
-          image: ennyl/petclinic:BUILD_NUMBER
+          image: ennyl/petclinic:65
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

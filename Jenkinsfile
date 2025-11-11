@@ -55,7 +55,6 @@ pipeline {
         
         stage('Update Kubernetes Manifest') {
             steps {
-                echo "Updating deployment manifest with build number: ${BUILD_NUMBER}"
                 sh '''
                     # Install kubectl if not present
                     if ! command -v kubectl &> /dev/null; then
@@ -64,7 +63,6 @@ pipeline {
                         mv kubectl /usr/local/bin/
                     fi
                     
-                    sed -i 's/BUILD_NUMBER/${BUILD_NUMBER}/g' k8s/07-petclinic-deployment.yaml
                     kubectl apply -f k8s/07-petclinic-deployment.yaml
                     kubectl apply -f k8s/08-petclinic-service.yaml
                     echo "Waiting for deployment rollout..."
