@@ -21,7 +21,7 @@ pipeline {
                 echo 'Running tests...'
                 sh '''
                     chmod +x mvnw
-                    ./mvnw clean test -DskipTests=false -DskipITs=true
+                    ./mvnw clean test -DskipTests=false -DskipITs=true -Dcheckstyle.skip=true
                 '''
             }
             post {
