@@ -19,12 +19,11 @@ spec:
     spec:
       containers:
         - name: petclinic
-          image: ennyl/petclinic:65
+          image: ennyl/petclinic:78
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
-            # CRITICAL: Use correct variable names for postgres profile
             - name: SPRING_PROFILES_ACTIVE
               value: "postgres"
             - name: POSTGRES_URL
@@ -46,7 +45,6 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
-          # Add health probes to help rollout
           livenessProbe:
             httpGet:
               path: /
