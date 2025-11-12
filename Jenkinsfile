@@ -104,6 +104,8 @@ pipeline {
                     echo ""
                     echo "=== Deployment Info ==="
                     kubectl describe deployment petclinic | grep Image:
+                    echo "=== Recent logs from the new pod(s) ==="
+           	    kubectl logs $(kubectl get pods -l app=petclinic -o jsonpath='{.items[-1].metadata.name}') --tail=50
                 '''
             }
         }
