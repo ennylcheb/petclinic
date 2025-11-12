@@ -8,7 +8,7 @@ pipeline {
     }
     
     stages {
-        stage('Checkout') {
+        stage('Github Checkout') {
             steps {
                 echo 'Checking out code from GitHub...'
                 checkout scm
@@ -28,6 +28,12 @@ pipeline {
                 always {
                     junit '**/target/surefire-reports/*.xml'
                 }
+            }
+        }
+        
+        stage('Static Analysis') {
+            steps {
+                sh './mvnw sonar:sonar -Dsonar.projectKey=myproject -Dsonar.host.url=http:sonarcloud.io -Dsonar.login=ennylcheb_petclinic'
             }
         }
         
