@@ -5,6 +5,7 @@ pipeline {
         DOCKER_HUB_CREDENTIALS = credentials('dockerhub-credentials')
         DOCKER_IMAGE = 'ennyl/petclinic'
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
+        SONAR_TOKEN = credentials('sonar-token')
     }
     
     stages {
@@ -30,10 +31,17 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Static Analysis') {
             steps {
-                sh './mvnw sonar:sonar -Dsonar.projectKey=myproject -Dsonar.host.url=http:sonarcloud.io -Dsonar.login=ennylcheb_petclinic'
+                echo 'Running static analysis with SonarCloud...'
+                sh '''
+                    ./mvnw sonar:sonar \
+                        -Dsonar.projectKey=ennylcheb_petclinic \   
+                        -Dsonar.organization=ennylcheb \                   
+                        -Dsonar.host.url=https://sonarcloud.io \
+                        -Dsonar.login=$SONAR_TOKEN
+                '''
             }
         }
         
@@ -128,3 +136,4 @@ pipeline {
         }
     }
 }
+
