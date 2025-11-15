@@ -34,7 +34,7 @@ pipeline {
         
         stage('Static Analysis') {
             steps {
-                echo 'Running static analysis with SonarCloud...'
+                echo 'Running static analysis with SonarCloud....'
                 sh './mvnw sonar:sonar -Dsonar.projectKey=ennylcheb_petclinic -Dsonar.organization=ennylcheb -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN'
             }
         }
